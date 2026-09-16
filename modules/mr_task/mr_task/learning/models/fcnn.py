@@ -108,6 +108,13 @@ class FCNN(nn.Module):
                     out = model.forward(sub_data, device)
                     out[:, 0] = torch.sigmoid(out[:, 0])
                     out = out.detach().cpu().numpy()
-                    prob_feasible_dict[subgoal] = out[0][0]
+                    # Return a Python float (float64) rather than a numpy.float32
+                    # scalar. round(x, 2) on a numpy scalar preserves float32, so
+                    # the downstream probability normalisation in
+                    # mr_task/core.py ran in float32 and its float64 sum could
+                    # drift ~3e-8 from 1.0 - past np.random.choice's tolerance of
+                    # sqrt(eps) ~ 1.49e-8, raising
+                    # "ValueError: probabilities do not sum to 1".
+                    prob_feasible_dict[subgoal] = float(out[0][0])
             return prob_feasible_dict
         return frontier_net
