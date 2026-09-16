@@ -54,6 +54,13 @@ def _setup(args):
 
     cost = min([robot.net_motion for robot in robot_team])
 
+    # Record the result before building the figure. Plotting calls
+    # get_top_down_image(), which can raise TimeoutError from AI2-THOR under
+    # load; previously that discarded an already-computed cost and lost the run.
+    logfile = Path(args.save_dir) / f'log_{args.num_robots}.txt'
+    with open(logfile, "a+") as f:
+        f.write(f"SEED : {args.seed} | PLANNER : {args.planner} | COST : {cost:0.3f}\n")
+
     fig = plt.figure(figsize=(10, 10), dpi=1000)
     plt.subplot(221)
     procthor.plotting.plot_graph(plt.gca(), known_graph.nodes, known_graph.edges)
@@ -74,9 +81,6 @@ def _setup(args):
     fig.supxlabel(f'Visit order: {ordering}', wrap=True)
     plt.savefig(f'{args.save_dir}/mtask_eval_planner_{args.planner}_n_{args.num_robots}_seed_{args.seed}.png', dpi=400)
 
-    logfile = Path(args.save_dir) / f'log_{args.num_robots}.txt'
-    with open(logfile, "a+") as f:
-        f.write(f"SEED : {args.seed} | PLANNER : {args.planner} | COST : {cost:0.3f}\n")
 
 
 if __name__ == '__main__':
