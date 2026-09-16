@@ -283,7 +283,13 @@ def _get_robot_that_finishes_first(mrstate):
               for robot in all_robots
               if set(robot.action.props) & set(useful_props) and not robot.is_waiting]
     if len(events) == 0:
-        pdb.set_trace()
+        # Was pdb.set_trace(). In an unattended batch sweep that blocks the
+        # worker forever on a stdin read instead of failing, which is
+        # indistinguishable from a slow run. Raise so the condition is
+        # attributable; the branch is unreachable in normal operation.
+        raise RuntimeError(
+            '_get_robot_that_finishes_first: no usable event '
+            '(every robot is waiting, or none has a useful prop)')
     shortest_event = min(events, key=lambda x: x[2])
     event_robot, event_outcome, event_time = shortest_event
     return all_robots, event_robot, event_outcome, event_time
