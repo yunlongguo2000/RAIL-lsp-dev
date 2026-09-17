@@ -93,6 +93,10 @@ if __name__ == '__main__':
     parser.add_argument('--num_iterations', type=int, default=50000)
     parser.add_argument('--C', type=int, default=100)
     parser.add_argument('--resolution', type=float, default=0.05)
+    # Scene cache: with a cache hit the run needs no AI2-THOR instance at
+    # all, which is what makes large parallel sweeps viable. Populate it
+    # with a serial pass before running in parallel.
+    parser.add_argument('--cache_path', type=str, default=None)
     args = parser.parse_args()
     args.current_seed = args.seed
 

@@ -48,9 +48,17 @@ class ThorInterface:
                 if container['id'].split('|')[0].lower() not in IGNORE_CONTAINERS
             ]
 
-        self.controller = Controller(scene=self.scene,
-                                     gridSize=self.grid_resolution,
-                                     width=480, height=480)
+        # Optional scene cache (ported from procthor.py, which retained it).
+        # AI2-THOR is only needed for GetReachablePositions and the top-down
+        # image; caching both lets a cached seed run without starting Unity,
+        # which is what makes large parallel sweeps viable.
+        self.cache = None
+        if getattr(args, "cache_path", None):
+            self.cache = utils.load_cache(self.seed, args.cache_path)
+        if self.cache is None:
+            self.controller = Controller(scene=self.scene,
+                                         gridSize=self.grid_resolution,
+                                         width=480, height=480)
         # Note: Load occupancy_grid before scene_graph
         self.occupancy_grid = self.get_occupancy_grid()
         self.scene_graph = self.get_scene_graph()
@@ -105,8 +113,16 @@ class ThorInterface:
         } for i in range(num_objects)]
 
     def get_occupancy_grid(self):
-        event = self.controller.step(action="GetReachablePositions")
-        reachable_positions = event.metadata["actionReturn"]
+        if self.cache:
+            reachable_positions = self.cache['RPs']
+        else:
+            event = self.controller.step(action="GetReachablePositions")
+            reachable_positions = event.metadata["actionReturn"]
+            if getattr(self.args, "cache_path", None):
+                utils.save_cache(
+                    self.seed, self.args.cache_path,
+                    {'RPs': reachable_positions,
+                     'image': self.get_top_down_image()})
         RPs = reachable_positions
 
         xs = [rp["x"] for rp in reachable_positions]
@@ -262,6 +278,8 @@ class ThorInterface:
         return known_cost
 
     def get_top_down_image(self, orthographic=True):
+        if self.cache is not None and 'image' in self.cache:
+            return self.cache['image']
         # Setup top down camera
         event = self.controller.step(action="GetMapViewCameraProperties", raise_for_failure=True)
         pose = copy.deepcopy(event.metadata["actionReturn"])
