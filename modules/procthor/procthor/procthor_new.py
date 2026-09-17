@@ -119,10 +119,19 @@ class ThorInterface:
             event = self.controller.step(action="GetReachablePositions")
             reachable_positions = event.metadata["actionReturn"]
             if getattr(self.args, "cache_path", None):
+                # The top-down render can time out on large scenes
+                # (AddThirdPartyCamera). Cache the reachable positions anyway -
+                # they are what the planner needs, and losing them would take
+                # the whole run down over a figure panel.
+                try:
+                    top_down = self.get_top_down_image()
+                except Exception as e:
+                    print(f'[procthor] top-down render failed ({type(e).__name__}); '
+                          f'caching reachable positions only', flush=True)
+                    top_down = None
                 utils.save_cache(
                     self.seed, self.args.cache_path,
-                    {'RPs': reachable_positions,
-                     'image': self.get_top_down_image()})
+                    {'RPs': reachable_positions, 'image': top_down})
         RPs = reachable_positions
 
         xs = [rp["x"] for rp in reachable_positions]
@@ -278,8 +287,13 @@ class ThorInterface:
         return known_cost
 
     def get_top_down_image(self, orthographic=True):
-        if self.cache is not None and 'image' in self.cache:
+        if self.cache is not None and self.cache.get('image') is not None:
             return self.cache['image']
+        if self.cache is not None:
+            # Cached without an image (render had failed); nothing to serve and
+            # no controller exists on a cache hit.
+            raise RuntimeError('top-down image unavailable for cached scene '
+                               f'{self.seed}')
         # Setup top down camera
         event = self.controller.step(action="GetMapViewCameraProperties", raise_for_failure=True)
         pose = copy.deepcopy(event.metadata["actionReturn"])
