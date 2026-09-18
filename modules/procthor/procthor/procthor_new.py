@@ -290,10 +290,13 @@ class ThorInterface:
         if self.cache is not None and self.cache.get('image') is not None:
             return self.cache['image']
         if self.cache is not None:
-            # Cached without an image (render had failed); nothing to serve and
-            # no controller exists on a cache hit.
-            raise RuntimeError('top-down image unavailable for cached scene '
-                               f'{self.seed}')
+            # Cached without an image (the render had timed out) and there is no
+            # controller on a cache hit. Serve a blank placeholder rather than
+            # raising: the caller only wants a figure panel, and failing here
+            # would make every later run of this scene die at plotting time.
+            print(f'[procthor] no cached top-down image for scene {self.seed}; '
+                  f'using a blank placeholder', flush=True)
+            return np.zeros((64, 64, 3), dtype=np.uint8)
         # Setup top down camera
         event = self.controller.step(action="GetMapViewCameraProperties", raise_for_failure=True)
         pose = copy.deepcopy(event.metadata["actionReturn"])
