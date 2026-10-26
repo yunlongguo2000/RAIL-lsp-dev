@@ -139,3 +139,6 @@ dmypy.json
 /resources/ai2thor
 /resources/procthor-10k
 /resources/sentence_transformers
+
+# CMake downloads this independent upstream checkout; do not add an embedded gitlink.
+/modules/mrlsp_accel/pybind11/
